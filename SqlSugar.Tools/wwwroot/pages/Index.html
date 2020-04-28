@@ -68,7 +68,7 @@
                     </div>
                 </div>
             </el-col>
-            <el-col :xs="12" :sm="12" :lg="6" class="card-panel-col" onclick="toHome()">
+            <el-col :xs="12" :sm="12" :lg="6" class="card-panel-col" onclick="toHome()" v-show="false">
                 <div class="card-panel">
                     <div class="card-panel-icon-wrapper icon-people">
                         <svg class="" style="width:35px;height:35px;">
@@ -81,7 +81,7 @@
                     </div>
                 </div>
             </el-col>
-            <el-col :xs="12" :sm="12" :lg="6" class="card-panel-col" onclick="toGithub()">
+            <el-col :xs="12" :sm="12" :lg="6" class="card-panel-col" onclick="toGithub()" v-show="false">
                 <div class="card-panel">
                     <div class="card-panel-icon-wrapper icon-people">
                         <svg class="" style="width:35px;height:35px;">
@@ -94,7 +94,7 @@
                     </div>
                 </div>
             </el-col>
-            <el-col :xs="12" :sm="12" :lg="6" class="card-panel-col" onclick="showPay()">
+            <el-col :xs="12" :sm="12" :lg="6" class="card-panel-col" onclick="showPay()" v-show="false">
                 <div class="card-panel">
                     <div class="card-panel-icon-wrapper icon-people">
                         <svg class="" style="width:35px;height:35px;">
@@ -108,7 +108,7 @@
                 </div>
             </el-col>
         </el-row>
-        <div id="qq">
+        <div id="qq" v-show="false">
             <h3 style="color:#444">交流QQ群<span style="font-size:12px;font-weight:500;color:#666;padding-left:10px;">单击即可添加群</span></h3>
             <el-tag class="qqTag" type="danger" onclick="qq.addedQun('http://shang.qq.com/wpa/qunwpa?idkey=428ff6cca697f2e401944eff2ddb5e150289bc0eb0f441f0d09dd7a5395fa411')">一群: 225982985</el-tag>
             <el-tag class="qqTag" type="danger" onclick="qq.addedQun('http://shang.qq.com/wpa/qunwpa?idkey=e68413f2d34bff2110aa339632c21f0bd9399ea18e92ffe64f58b7a138cde8a0')">二群: 726648662</el-tag>
@@ -116,7 +116,7 @@
             <p style="font-size:12px;color:#666">请不要重复申请入群, 添加一个群即可, 留下位置给更多需要的人. </p>
         </div>
         <div id="particles-js"></div>
-        <el-dialog class="my-pay" :visible.sync="dialogVisible" :close-on-click-modal="false" top="20px" width="90%">
+        <el-dialog class="my-pay" :visible.sync="dialogVisible" :close-on-click-modal="false" top="20px" width="90%" v-show="false">
             <div>
                 <p>如果该工具为你提供了便利, 您可以根据自己的经济情况, 给予适当的捐赠, 支持开发者的维护</p>
                 <p>本工具BUG反馈请加下面的三个群之一, 进行反馈</p>
