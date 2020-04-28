@@ -278,17 +278,17 @@ namespace SqlSugar.Tools
             var selectDBFile = sqlite.AddFunction("selectDBFile");  //选择db文件方法
             selectDBFile.Execute += (func, args) =>
             {
-                using(var openFileDialog = new OpenFileDialog
+                using (var openFileDialog = new OpenFileDialog
                 {
                     Multiselect = false,
                     Title = "请选择SQLite文件",
                     Filter = "SQLite文件(*.db)|*.db|所有文件(*.*)|*.*"
                 })
                 {
-                    if (openFileDialog.ShowDialog()== DialogResult.OK)
+                    if (openFileDialog.ShowDialog() == DialogResult.OK)
                     {
                         //string file = openFileDialog.FileName;//返回文件的完整路径
-                        EvaluateJavascript($"setSQLiteFilePath('{openFileDialog.FileName.Replace("\\","\\\\")}')", (value, exception) => { });
+                        EvaluateJavascript($"setSQLiteFilePath('{openFileDialog.FileName.Replace("\\", "\\\\")}')", (value, exception) => { });
                     }
                 }
             };
@@ -1382,7 +1382,9 @@ ORDER BY
             {
                 var database = linkString.Substring(linkString.IndexOf("Database=") + 9, linkString.IndexOf(";port=") - linkString.IndexOf("Database=") - 9);
                 tableInfo = await MySQLHelper.QueryTableInfo(linkString, $"select * from `{nodeName}` where 1=2");
-                colsInfos = await MySQLHelper.QueryDataTable(linkString, $"select COLUMN_NAME as OBJNAME,column_comment as VALUE from INFORMATION_SCHEMA.Columns where table_name='{nodeName}' and table_schema='{database}'", null);
+                colsInfos = await MySQLHelper.QueryDataTable(linkString, $@"select COLUMN_NAME as OBJNAME,column_comment as VALUE 
+                    ,COLUMN_NAME,COLUMN_COMMENT,IS_NULLABLE,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH,COLUMN_TYPE,COLUMN_KEY,EXTRA
+                    from INFORMATION_SCHEMA.Columns where table_name='{nodeName}' and table_schema='{database}'", null);
                 this.GetCode(
                     tableInfo,
                     colsInfos,
@@ -1398,7 +1400,7 @@ ORDER BY
                     nodeDesc,
                     settings,
                     isYuLan,
-                    codeString);
+                    codeString, "ColumnSize");
             }
             else if (type == DataBaseType.SQLite)
             {
@@ -1503,10 +1505,11 @@ WHERE
         /// <param name="settings">设置信息</param>
         /// <param name="isYuLan">是否是预览</param>
         /// <param name="codeString"></param>
+        /// <param name="columnSize">从表信息DataTabel中取字段长度的key</param>
         /// <returns></returns>
         private void GetCode(
-            DataTable tableInfo, 
-            DataTable colsInfos, 
+            DataTable tableInfo,
+            DataTable colsInfos,
             string objname,
             string columnName,
             string zhuShiValueName,
@@ -1514,21 +1517,27 @@ WHERE
             string isIdentityName,
             string dataTypeName,
             string allowDBNullName,
-            string linkString, 
-            string nodeName, 
-            string nodeDesc, 
-            SettingsModel settings, 
-            bool isYuLan, 
-            StringBuilder codeString)
+            string linkString,
+            string nodeName,
+            string nodeDesc,
+            SettingsModel settings,
+            bool isYuLan,
+            StringBuilder codeString, string columnSize = "")
         {
             string tableName = (settings.ClassCapsCount > 0 ? nodeName.SetLengthToUpperByStart((int)settings.ClassCapsCount) : nodeName);
+            string tableAnnotations = ""; //EF注解，表
+            if (settings.DataAnnotations)
+            {
+                tableName = nodeName.ToJoinSplit();
+                tableAnnotations = $"{Environment.NewLine}    [Table(\"{nodeName}\")]";
+            }
             codeString.Append($@"using SqlSugar;{(string.IsNullOrWhiteSpace(settings.Namespace) ? "" : $"{Environment.NewLine}{settings.Namespace.Trim()}")}
 
 namespace {settings.EntityNamespace.Trim()}
 {{
     /// <summary>
     /// {nodeDesc}
-    /// </summary>{(string.IsNullOrWhiteSpace(settings.CusAttr) ? "" : $"{Environment.NewLine}    {settings.CusAttr.Trim()}")}
+    /// </summary>{(string.IsNullOrWhiteSpace(settings.CusAttr) ? "" : $"{Environment.NewLine}    {settings.CusAttr.Trim()}") + tableAnnotations}
     public class {tableName}{(string.IsNullOrWhiteSpace(settings.BaseClassName) ? "" : $" : {settings.BaseClassName.Trim()}")}
     {{
         /// <summary>
@@ -1538,7 +1547,7 @@ namespace {settings.EntityNamespace.Trim()}
         {{{(string.IsNullOrWhiteSpace(settings.CusGouZao) ? "" : Environment.NewLine + "          " + settings.CusGouZao.Trim().Replace("-tableName-", isYuLan ? $"<span style=\"color:yellow\">{tableName}</span>" : tableName))}
         }}
 ");
-            if (settings.PropType== PropType.Easy)  //建议模式, 属性只生成get; set; 属性自定义模版失效
+            if (settings.PropType == PropType.Easy)  //简易模式, 属性只生成get; set; 属性自定义模版失效
             {
                 foreach (DataRow dr in tableInfo.Rows)
                 {
@@ -1548,6 +1557,19 @@ namespace {settings.EntityNamespace.Trim()}
                         if (uu[objname].ToString().ToUpper() == dr[columnName].ToString().ToUpper())
                             zhuShi = uu[zhuShiValueName].ToString();
                     }
+                    string columnAnnotations = ""; //EF注解，字段
+                    if (settings.DataAnnotations)
+                    {
+                        columnAnnotations = $"{Environment.NewLine}        [Column(\"{dr[columnName].ToString()}\")]";
+                        if (dr[dataTypeName].ToString() == "System.String")
+                        {
+                            int maxLen = 0;
+                            if (!String.IsNullOrWhiteSpace(columnSize) && int.TryParse(dr[columnSize].ToString(), out maxLen) && maxLen > 0)
+                            {
+                                columnAnnotations += $"{Environment.NewLine}        [StringLength({maxLen})]";
+                            }
+                        }
+                    }
                     if ((bool)dr[isKeyName] && !(bool)dr[isIdentityName])
                     {
                         if (settings.SqlSugarPK)
@@ -1556,7 +1578,7 @@ namespace {settings.EntityNamespace.Trim()}
         /// <summary>
         /// -zhuShi-
         /// </summary>
-        [SugarColumn(IsPrimaryKey = true)]
+        [SugarColumn(IsPrimaryKey = true)]{columnAnnotations}
         public -dbType- -colName- {{ get; set; }}
 ");
                         }
@@ -1565,7 +1587,7 @@ namespace {settings.EntityNamespace.Trim()}
                             codeString.Append($@"
         /// <summary>
         /// -zhuShi-
-        /// </summary>
+        /// </summary>{columnAnnotations}
         public -dbType- -colName- {{ get; set; }}
 ");
                         }
@@ -1578,7 +1600,7 @@ namespace {settings.EntityNamespace.Trim()}
         /// <summary>
         /// -zhuShi-
         /// </summary>
-        [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+        [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]{columnAnnotations}
         public -dbType- -colName- {{ get; set; }}
 ");
                         }
@@ -1588,7 +1610,7 @@ namespace {settings.EntityNamespace.Trim()}
         /// <summary>
         /// -zhuShi-
         /// </summary>
-        [SugarColumn(IsPrimaryKey = true)]
+        [SugarColumn(IsPrimaryKey = true)]{columnAnnotations}
         public -dbType- -colName- {{ get; set; }}
 ");
                         }
@@ -1598,7 +1620,7 @@ namespace {settings.EntityNamespace.Trim()}
         /// <summary>
         /// -zhuShi-
         /// </summary>
-        [SugarColumn(IsIdentity = true)]
+        [SugarColumn(IsIdentity = true)]{columnAnnotations}
         public -dbType- -colName- {{ get; set; }}
 ");
                         }
@@ -1607,7 +1629,7 @@ namespace {settings.EntityNamespace.Trim()}
                             codeString.Append($@"
         /// <summary>
         /// -zhuShi-
-        /// </summary>
+        /// </summary>{columnAnnotations}
         public -dbType- -colName- {{ get; set; }}
 ");
                         }
@@ -1620,7 +1642,7 @@ namespace {settings.EntityNamespace.Trim()}
         /// <summary>
         /// -zhuShi-
         /// </summary>
-        [SugarColumn(IsIdentity = true)]
+        [SugarColumn(IsIdentity = true)]{columnAnnotations}
         public -dbType- -colName- {{ get; set; }}
 ");
                         }
@@ -1629,7 +1651,7 @@ namespace {settings.EntityNamespace.Trim()}
                             codeString.Append($@"
         /// <summary>
         /// -zhuShi-
-        /// </summary>
+        /// </summary>{columnAnnotations}
         public -dbType- -colName- {{ get; set; }}
 ");
                         }
@@ -1639,7 +1661,7 @@ namespace {settings.EntityNamespace.Trim()}
                         codeString.Append($@"
         /// <summary>
         /// -zhuShi-
-        /// </summary>
+        /// </summary>{columnAnnotations}
         public -dbType- -colName- {{ get; set; }}
 ");
                     }
@@ -1681,12 +1703,14 @@ namespace {settings.EntityNamespace.Trim()}
                             codeString.Replace("-value-", "value");
                         }
                     }
-                    codeString.Replace("-colName-", settings.PropCapsCount > 0 ? dr[columnName].ToString().SetLengthToUpperByStart((int)settings.PropCapsCount) : dr[columnName].ToString());  //替换列名（属性名）
+                    string colName = settings.PropCapsCount > 0 ? dr[columnName].ToString().SetLengthToUpperByStart((int)settings.PropCapsCount) : dr[columnName].ToString();
+                    if (settings.DataAnnotations)
+                    {
+                        colName = colName.ToJoinSplit();
+                    }
+                    codeString.Replace("-colName-", colName);  //替换列名（属性名）
                     codeString.Replace("-zhuShi-", zhuShi.Replace("\r\n", "\r\n        ///"));
                 }
-
-
-
             }
             else
             {
@@ -1716,6 +1740,19 @@ namespace {settings.EntityNamespace.Trim()}
                         if (uu[objname].ToString().ToUpper() == dr[columnName].ToString().ToUpper())
                             zhuShi = uu[zhuShiValueName].ToString();
                     }
+                    string columnAnnotations = ""; //EF注解，字段
+                    if (settings.DataAnnotations)
+                    {
+                        columnAnnotations = $"{Environment.NewLine}        [Column(\"{dr[columnName].ToString()}\")]";
+                        if (dr[dataTypeName].ToString() == "System.String")
+                        {
+                            int maxLen = 0;
+                            if (!String.IsNullOrWhiteSpace(columnSize) && int.TryParse(dr[columnSize].ToString(), out maxLen) && maxLen > 0)
+                            {
+                                columnAnnotations += $"{Environment.NewLine}        [StringLength({maxLen})]";
+                            }
+                        }
+                    }
                     if ((bool)dr[isKeyName] && !(bool)dr[isIdentityName])
                     {
                         if (settings.SqlSugarPK)
@@ -1725,7 +1762,7 @@ namespace {settings.EntityNamespace.Trim()}
         /// <summary>
         /// -zhuShi-
         /// </summary>
-        [SugarColumn(IsPrimaryKey = true)]
+        [SugarColumn(IsPrimaryKey = true)]{columnAnnotations}
         public -dbType- -colName- {{ get {{ {getString} }} set {{ {setString} }} }}
 ");
                         }
@@ -1735,7 +1772,7 @@ namespace {settings.EntityNamespace.Trim()}
         private -dbType- _-colName-;
         /// <summary>
         /// -zhuShi-
-        /// </summary>
+        /// </summary>{columnAnnotations}
         public -dbType- -colName- {{ get {{ {getString} }} set {{ {setString} }} }}
 ");
                         }
@@ -1749,7 +1786,7 @@ namespace {settings.EntityNamespace.Trim()}
         /// <summary>
         /// -zhuShi-
         /// </summary>
-        [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+        [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]{columnAnnotations}
         public -dbType- -colName- {{ get {{ {getString} }} set {{ {setString} }} }}
 ");
                         }
@@ -1760,7 +1797,7 @@ namespace {settings.EntityNamespace.Trim()}
         /// <summary>
         /// -zhuShi-
         /// </summary>
-        [SugarColumn(IsPrimaryKey = true)]
+        [SugarColumn(IsPrimaryKey = true)]{columnAnnotations}
         public -dbType- -colName- {{ get {{ {getString} }} set {{ {setString} }} }}
 ");
                         }
@@ -1771,7 +1808,7 @@ namespace {settings.EntityNamespace.Trim()}
         /// <summary>
         /// -zhuShi-
         /// </summary>
-        [SugarColumn(IsIdentity = true)]
+        [SugarColumn(IsIdentity = true)]{columnAnnotations}
         public -dbType- -colName- {{ get {{ {getString} }} set {{ {setString} }} }}
 ");
                         }
@@ -1781,7 +1818,7 @@ namespace {settings.EntityNamespace.Trim()}
         private -dbType- _-colName-;
         /// <summary>
         /// -zhuShi-
-        /// </summary>
+        /// </summary>{columnAnnotations}
         public -dbType- -colName- {{ get {{ {getString} }} set {{ {setString} }} }}
 ");
                         }
@@ -1795,7 +1832,7 @@ namespace {settings.EntityNamespace.Trim()}
         /// <summary>
         /// -zhuShi-
         /// </summary>
-        [SugarColumn(IsIdentity = true)]
+        [SugarColumn(IsIdentity = true)]{columnAnnotations}
         public -dbType- -colName- {{ get {{ {getString} }} set {{ {setString} }} }}
 ");
                         }
@@ -1805,7 +1842,7 @@ namespace {settings.EntityNamespace.Trim()}
         private -dbType- _-colName-;
         /// <summary>
         /// -zhuShi-
-        /// </summary>
+        /// </summary>{columnAnnotations}
         public -dbType- -colName- {{ get {{ {getString} }} set {{ {setString} }} }}
 ");
                         }
@@ -1816,7 +1853,7 @@ namespace {settings.EntityNamespace.Trim()}
         private -dbType- _-colName-;
         /// <summary>
         /// -zhuShi-
-        /// </summary>
+        /// </summary>{columnAnnotations}
         public -dbType- -colName- {{ get {{ {getString} }} set {{ {setString} }} }}
 ");
                     }
@@ -1858,7 +1895,12 @@ namespace {settings.EntityNamespace.Trim()}
                             codeString.Replace("-value-", "value");
                         }
                     }
-                    codeString.Replace("-colName-", settings.PropCapsCount > 0 ? dr[columnName].ToString().SetLengthToUpperByStart((int)settings.PropCapsCount) : dr[columnName].ToString());  //替换列名（属性名）
+                    string colName = settings.PropCapsCount > 0 ? dr[columnName].ToString().SetLengthToUpperByStart((int)settings.PropCapsCount) : dr[columnName].ToString();
+                    if (settings.DataAnnotations)
+                    {
+                        colName = colName.ToJoinSplit();
+                    }
+                    codeString.Replace("-colName-", colName);  //替换列名（属性名）
                     codeString.Replace("-zhuShi-", zhuShi.Replace("\r\n", "\r\n        ///"));
                 }
             }

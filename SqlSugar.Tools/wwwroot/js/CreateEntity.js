@@ -124,7 +124,8 @@ const vue = new Vue({
                 setCus: 'this._属性 = -value-;',
                 cusAttr: '',
                 cusGouZao: '',
-                propType: '1'
+                propType: '1',
+                dataAnnotations: false
             },
             createOneParam: {
                 node: null,
@@ -653,6 +654,7 @@ const vue = new Vue({
             this.settingsForm.cusAttr = settingsObject.cusAttr;
             this.settingsForm.cusGouZao = settingsObject.cusGouZao;
             this.settingsForm.propType = settingsObject.propType;
+            this.settingsForm.dataAnnotations = settingsObject.dataAnnotations;
         }
     }
 });

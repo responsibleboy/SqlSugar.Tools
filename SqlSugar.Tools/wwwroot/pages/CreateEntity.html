@@ -146,6 +146,13 @@
                         </el-tooltip>
                     </el-col>
                 </el-form-item>
+                <el-form-item label="">
+                    <el-col :span="5">
+                        <el-tooltip class="item" effect="dark" content="在类上增加[Table]，在字段上添加[Column]" placement="top">
+                            <el-checkbox v-model="settingsForm.dataAnnotations">使用EF注解</el-checkbox>
+                        </el-tooltip>
+                    </el-col>
+                </el-form-item>
                 <el-form-item label="实体类属性模式 : ">
                     <el-tooltip class="item" effect="dark" content="简易模式无法使用get和set自定义模版" placement="top">
                         <el-radio v-model="settingsForm.propType" label="0">简易模式</el-radio>

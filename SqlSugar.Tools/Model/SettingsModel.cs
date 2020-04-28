@@ -90,6 +90,12 @@ namespace SqlSugar.Tools.Model
         /// </summary>
         [JsonProperty(PropertyName = "propType")]
         public PropType PropType { get; set; }
+
+        /// <summary>
+        /// 是否使用EF注解
+        /// </summary>
+        [JsonProperty(PropertyName = "dataAnnotations")]
+        public bool DataAnnotations { get; set; }
     }
 
     internal enum PropType

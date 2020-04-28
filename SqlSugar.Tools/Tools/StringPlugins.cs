@@ -1,4 +1,6 @@
-﻿namespace SqlSugar.Tools.Tools
+﻿using System;
+
+namespace SqlSugar.Tools.Tools
 {
     internal static class StringPlugins
     {
@@ -39,6 +41,28 @@
                 itemString += str[i].ToString().ToUpper();
             }
             return itemString + str.Substring(length);
+        }
+
+        /// <summary>
+        /// 连接字符串
+        /// </summary>
+        /// <param name="str"></param>
+        /// <param name="split">分隔符</param>
+        /// <returns></returns>
+        public static string ToJoinSplit(this string str, char split = '_')
+        {
+            string ret = str;
+            string[] tns = str.Split(new char[] { split }, StringSplitOptions.RemoveEmptyEntries);
+            if (tns.Length > 0)
+            {
+                ret = "";
+                foreach (string part in tns)
+                {
+                    ret += part.SetLengthToUpperByStart();
+                }
+            }
+            //tableAnnotations = $"{Environment.NewLine}    [Table(\"{nodeName}\")]";
+            return ret;
         }
     }
 }
