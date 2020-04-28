@@ -1531,7 +1531,7 @@ WHERE
                 tableName = nodeName.ToJoinSplit();
                 tableAnnotations = $"{Environment.NewLine}    [Table(\"{nodeName}\")]";
             }
-            codeString.Append($@"using SqlSugar;{(string.IsNullOrWhiteSpace(settings.Namespace) ? "" : $"{Environment.NewLine}{settings.Namespace.Trim()}")}
+            codeString.Append($@"{(string.IsNullOrWhiteSpace(settings.Namespace) ? "" : $"{Environment.NewLine}{settings.Namespace.Trim()}")}
 
 namespace {settings.EntityNamespace.Trim()}
 {{
